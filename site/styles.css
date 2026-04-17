@@ -47,21 +47,21 @@ body {
 
 .app-shell {
   position: relative;
-  width: min(1200px, calc(100vw - 40px));
+  width: min(480px, 100vw);
   margin: 0 auto;
-  padding: 40px 0 40px;
+  min-height: 100dvh;
+  padding: 12px 12px 20px;
 }
 
 .masthead {
-  max-width: 980px;
-  margin: 0 auto 34px;
+  margin: 0 auto 14px;
   text-align: center;
 }
 
 .runtime-note {
   display: inline-flex;
-  margin: 0 0 18px;
-  padding: 10px 16px;
+  margin: 0 0 10px;
+  padding: 8px 14px;
   border: 1px solid rgba(139, 74, 46, 0.16);
   border-radius: 999px;
   background: rgba(255, 250, 245, 0.88);
@@ -83,24 +83,23 @@ body {
 }
 
 .masthead h1 {
-  font-size: clamp(2.7rem, 7vw, 6.4rem);
-  line-height: 0.92;
+  font-size: clamp(2rem, 10vw, 3.2rem);
+  line-height: 1;
   white-space: nowrap;
 }
 
 .lede {
-  max-width: 520px;
-  margin: 16px auto 0;
+  max-width: 360px;
+  margin: 10px auto 0;
   color: var(--muted);
-  font-size: 1rem;
-  line-height: 1.8;
+  font-size: 0.92rem;
+  line-height: 1.6;
 }
 
 .stage {
-  display: grid;
-  grid-template-columns: minmax(340px, 430px) minmax(0, 1fr);
-  gap: 24px;
-  align-items: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .input-panel,
@@ -114,24 +113,24 @@ body {
 }
 
 .input-panel {
-  padding: 24px;
+  order: 2;
+  padding: 16px;
 }
 
 .result-panel {
-  padding: 18px;
-  display: grid;
-  gap: 14px;
+  order: 1;
+  padding: 8px;
 }
 
 .controls {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 
 .control-button {
-  min-height: 46px;
+  min-height: 44px;
   padding: 0 18px;
   border: 1px solid rgba(20, 18, 15, 0.09);
   border-radius: 999px;
@@ -165,7 +164,7 @@ body {
 
 .recorder {
   position: relative;
-  min-height: 320px;
+  min-height: 250px;
   display: grid;
   place-items: center;
 }
@@ -177,15 +176,15 @@ body {
 }
 
 .recorder-halo-a {
-  width: 300px;
-  height: 300px;
+  width: 248px;
+  height: 248px;
   border: 1px solid rgba(20, 18, 15, 0.08);
   animation: spin 18s linear infinite;
 }
 
 .recorder-halo-b {
-  width: 220px;
-  height: 220px;
+  width: 182px;
+  height: 182px;
   border: 1px dashed rgba(139, 74, 46, 0.2);
   animation: spin-reverse 14s linear infinite;
 }
@@ -193,7 +192,7 @@ body {
 .recorder-core {
   position: relative;
   z-index: 1;
-  width: 220px;
+  width: 188px;
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -208,13 +207,13 @@ body {
 }
 
 .timer {
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   letter-spacing: 0.18em;
 }
 
 .record-button {
-  width: 126px;
-  height: 126px;
+  width: 106px;
+  height: 106px;
   border: none;
   border-radius: 50%;
   background: linear-gradient(180deg, #181512, #2f2721);
@@ -250,10 +249,10 @@ body {
 
 .meter {
   position: absolute;
-  inset: auto 0 22px;
+  inset: auto 0 10px;
   margin: 0 auto;
-  width: min(100%, 320px);
-  height: 52px;
+  width: min(100%, 300px);
+  height: 34px;
   display: grid;
   grid-template-columns: repeat(24, minmax(0, 1fr));
   gap: 5px;
@@ -270,27 +269,28 @@ body {
 }
 
 .status-line {
-  margin: 6px 0 18px;
+  margin: 4px 0 12px;
   text-align: center;
   color: var(--accent);
   letter-spacing: 0.06em;
+  font-size: 0.92rem;
 }
 
 .transcript-card,
 .audio-card {
-  padding: 18px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: rgba(255, 252, 248, 0.82);
 }
 
 .audio-card {
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .transcript-input {
   width: 100%;
-  min-height: 118px;
+  min-height: 92px;
   border: none;
   outline: none;
   resize: vertical;
@@ -310,9 +310,11 @@ audio {
 
 .result-frame {
   position: relative;
-  min-height: 620px;
+  width: 100%;
+  aspect-ratio: 480 / 832;
+  min-height: auto;
   overflow: hidden;
-  border-radius: calc(var(--radius-xl) - 8px);
+  border-radius: 28px;
   background:
     radial-gradient(circle at 22% 18%, rgba(255, 182, 143, 0.18), transparent 16%),
     radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.08), transparent 18%),
@@ -375,22 +377,18 @@ audio {
 .video-shell {
   display: grid;
   place-items: center;
-  padding: 18px;
+  padding: 0;
+  background:
+    linear-gradient(180deg, rgba(10, 9, 8, 0.96), rgba(23, 19, 17, 0.98));
 }
 
 .video-shell video {
   width: 100%;
-  max-height: calc(100% - 16px);
-  border-radius: 24px;
+  height: 100%;
+  border-radius: 28px;
   background: #080706;
   object-fit: contain;
-}
-
-.video-link {
-  justify-self: end;
-  color: var(--accent);
-  text-decoration: none;
-  border-bottom: 1px solid rgba(139, 74, 46, 0.28);
+  object-position: center center;
 }
 
 .hidden {
@@ -427,39 +425,32 @@ audio {
 
 @media (max-width: 980px) {
   .masthead h1 {
-    font-size: clamp(2.3rem, 8vw, 5rem);
-  }
-
-  .stage {
-    grid-template-columns: 1fr;
-  }
-
-  .result-frame {
-    min-height: 460px;
+    font-size: clamp(2rem, 10vw, 3.2rem);
   }
 }
 
 @media (max-width: 640px) {
   .app-shell {
-    width: min(100vw - 24px, 1200px);
-    padding: 24px 0 24px;
+    width: 100vw;
+    padding: 10px 10px 18px;
   }
 
   .masthead h1 {
-    font-size: clamp(1.78rem, 8vw, 3rem);
+    font-size: clamp(1.84rem, 10vw, 2.7rem);
   }
 
   .input-panel,
   .result-panel {
-    border-radius: 28px;
+    border-radius: 24px;
   }
 
   .input-panel {
-    padding: 18px;
+    padding: 14px;
   }
 
   .controls {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .reply-button {
@@ -467,39 +458,6 @@ audio {
   }
 
   .recorder {
-    min-height: 290px;
-  }
-
-  .recorder-halo-a {
-    width: 240px;
-    height: 240px;
-  }
-
-  .recorder-halo-b {
-    width: 176px;
-    height: 176px;
-  }
-
-  .recorder-core {
-    width: 184px;
-  }
-
-  .record-button {
-    width: 108px;
-    height: 108px;
-  }
-
-  .result-frame {
-    min-height: 360px;
-  }
-
-  .loading-orbit-a {
-    width: 260px;
-    height: 260px;
-  }
-
-  .loading-orbit-b {
-    width: 170px;
-    height: 170px;
+    min-height: 236px;
   }
 }
