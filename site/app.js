@@ -36,7 +36,6 @@ const progressText = document.querySelector("#progressText");
 const loadingView = document.querySelector("#loadingView");
 const videoShell = document.querySelector("#videoShell");
 const resultVideo = document.querySelector("#resultVideo");
-const videoLink = document.querySelector("#videoLink");
 const meter = document.querySelector("#meter");
 
 for (let index = 0; index < 24; index += 1) {
@@ -80,11 +79,16 @@ const syncButtons = () => {
 const setOutputMode = ({ loading = true, videoUrl = "" } = {}) => {
   loadingView.classList.toggle("hidden", !loading);
   videoShell.classList.toggle("hidden", loading);
-  videoLink.classList.toggle("hidden", !videoUrl);
 
   if (videoUrl) {
     resultVideo.src = videoUrl;
-    videoLink.href = videoUrl;
+    resultVideo.load();
+    const tryPlay = () => {
+      resultVideo.play().catch(() => {
+        // Autoplay can be blocked by the browser; controls remain available.
+      });
+    };
+    resultVideo.onloadeddata = tryPlay;
   }
 };
 

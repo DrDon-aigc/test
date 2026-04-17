@@ -76,19 +76,15 @@
             </div>
 
             <div class="video-shell hidden" id="videoShell">
-              <video id="resultVideo" controls playsinline></video>
+              <video
+                id="resultVideo"
+                controls
+                playsinline
+                webkit-playsinline="true"
+                preload="metadata"
+              ></video>
             </div>
           </div>
-
-          <a
-            id="videoLink"
-            class="video-link hidden"
-            href="#"
-            target="_blank"
-            rel="noreferrer"
-          >
-            打开视频
-          </a>
         </div>
       </section>
     </main>
