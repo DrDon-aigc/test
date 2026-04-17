@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>以卿之声回复你</title>
+    <meta
+      name="description"
+      content="先授权麦克风，长按录音，检查文字和音频，再生成回应视频。"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="backdrop"></div>
+    <main class="app-shell">
+      <header class="masthead">
+        <p class="runtime-note" id="runtimeNote">先授权，再长按录音，确认后回复</p>
+        <h1>以卿之声回复你</h1>
+        <p class="lede">把流程拆清楚，只留下你真正需要操作的那几步。</p>
+      </header>
+
+      <section class="stage">
+        <div class="input-panel">
+          <div class="controls">
+            <button class="control-button permission-button" id="permissionButton" type="button">
+              开启录音权限
+            </button>
+            <button class="control-button reply-button" id="replyButton" type="button" disabled>
+              回复
+            </button>
+          </div>
+
+          <div class="recorder">
+            <div class="recorder-halo recorder-halo-a"></div>
+            <div class="recorder-halo recorder-halo-b"></div>
+            <div class="recorder-core">
+              <span class="timer" id="timer">00:00</span>
+              <button class="record-button" id="recordButton" type="button" disabled>
+                <span class="record-button-text">长按录音</span>
+              </button>
+            </div>
+            <div class="meter" id="meter"></div>
+          </div>
+
+          <p class="status-line" id="statusLine">先开启录音权限</p>
+
+          <div class="transcript-card">
+            <textarea
+              class="transcript-input"
+              id="transcriptInput"
+              placeholder="松手后，这里会出现转写文字，你可以再检查一遍。"
+            ></textarea>
+          </div>
+
+          <div class="audio-card hidden" id="audioCard">
+            <audio id="audioPlayer" controls></audio>
+          </div>
+        </div>
+
+        <div class="result-panel">
+          <div class="result-frame" id="resultStage">
+            <div class="loading-view" id="loadingView">
+              <div class="loading-orbit loading-orbit-a"></div>
+              <div class="loading-orbit loading-orbit-b"></div>
+              <div class="loading-core"></div>
+              <div class="loading-copy">
+                <h2>静候回音</h2>
+                <p id="progressText">先长按录音，松手后检查，再点击回复。</p>
+              </div>
+            </div>
+
+            <div class="video-shell hidden" id="videoShell">
+              <video id="resultVideo" controls playsinline></video>
+            </div>
+          </div>
+
+          <a
+            id="videoLink"
+            class="video-link hidden"
+            href="#"
+            target="_blank"
+            rel="noreferrer"
+          >
+            打开视频
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
