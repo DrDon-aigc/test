@@ -52,6 +52,29 @@ export const runninghubRequest = async (path, init = {}) => {
   return payload;
 };
 
+export const unwrapRunninghubTask = (payload) => {
+  const candidate =
+    payload?.data && typeof payload.data === "object" && !Array.isArray(payload.data)
+      ? payload.data
+      : payload;
+
+  return {
+    raw: payload,
+    taskId: candidate?.taskId || payload?.taskId || null,
+    status: candidate?.status || payload?.status || null,
+    errorCode: candidate?.errorCode || payload?.errorCode || "",
+    errorMessage:
+      candidate?.errorMessage ||
+      payload?.errorMessage ||
+      payload?.message ||
+      payload?.msg ||
+      "",
+    promptTips: candidate?.promptTips || payload?.promptTips || "",
+    clientId: candidate?.clientId || payload?.clientId || null,
+    results: candidate?.results ?? payload?.results ?? null,
+  };
+};
+
 export const handleError = (error) =>
   jsonResponse(
     {

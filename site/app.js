@@ -28,6 +28,7 @@ function createPanelController(root) {
     loadingView: root.querySelector('[data-role="loadingView"]'),
     videoShell: root.querySelector('[data-role="videoShell"]'),
     resultVideo: root.querySelector('[data-role="resultVideo"]'),
+    playOverlay: root.querySelector('[data-role="playOverlay"]'),
     meterEl: root.querySelector('[data-role="meter"]'),
     meterBars: [],
     isRecording: false,
@@ -65,6 +66,24 @@ function createPanelController(root) {
   });
   state.recordButton.addEventListener("contextmenu", (event) => {
     event.preventDefault();
+  });
+  state.playOverlay.addEventListener("click", async () => {
+    try {
+      await state.resultVideo.play();
+    } catch {
+      // Keep overlay visible if playback is blocked.
+    }
+  });
+  state.resultVideo.addEventListener("play", () => {
+    state.playOverlay.classList.add("hidden");
+  });
+  state.resultVideo.addEventListener("pause", () => {
+    if (state.resultVideo.currentSrc) {
+      state.playOverlay.classList.remove("hidden");
+    }
+  });
+  state.resultVideo.addEventListener("ended", () => {
+    state.playOverlay.classList.remove("hidden");
   });
 
   state.replyButton.addEventListener("click", async () => {
@@ -145,15 +164,14 @@ function syncButtons() {
 function setOutputMode(panel, { loading = true, videoUrl = "" } = {}) {
   panel.loadingView.classList.toggle("hidden", !loading);
   panel.videoShell.classList.toggle("hidden", loading);
+  panel.playOverlay.classList.toggle("hidden", loading);
 
   if (videoUrl) {
     panel.resultVideo.onloadeddata = null;
     panel.resultVideo.src = videoUrl;
     panel.resultVideo.load();
     panel.resultVideo.onloadeddata = () => {
-      panel.resultVideo.play().catch(() => {
-        // Autoplay can be blocked by the browser; controls remain available.
-      });
+      panel.playOverlay.classList.remove("hidden");
     };
   }
 }
@@ -205,6 +223,7 @@ function resetTaskView(panel) {
   panel.resultVideo.pause();
   panel.resultVideo.removeAttribute("src");
   panel.resultVideo.load();
+  panel.playOverlay.classList.add("hidden");
   setOutputMode(panel, { loading: true });
   setText(panel.progressText, "先按住录音，松手检查后再点击回复。");
 }
