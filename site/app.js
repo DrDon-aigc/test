@@ -16,6 +16,8 @@ function createPanelController(root) {
     id: root.dataset.panelId,
     root,
     statusEl: root.querySelector('[data-role="status"]'),
+    networkStageEl: root.querySelector('[data-role="networkStage"]'),
+    taskIdEl: root.querySelector('[data-role="taskId"]'),
     replyButton: root.querySelector('[data-role="replyButton"]'),
     recordButton: root.querySelector('[data-role="recordButton"]'),
     timerEl: root.querySelector('[data-role="timer"]'),
@@ -73,11 +75,14 @@ function createPanelController(root) {
       state.isBusy = false;
       syncButtons();
       setStatus(state, "未连接");
+      setNetworkStage(state, "调用失败");
       setText(state.progressText, error instanceof Error ? error.message : "发生了未知错误。");
     }
   });
 
   setStatus(state, "等待授权");
+  setNetworkStage(state, "未发起");
+  setTaskId(state, "未创建");
   setText(state.progressText, "先按住录音，松手检查后再点击回复。");
   setOutputMode(state, { loading: true });
   stopMeters(state);
@@ -90,6 +95,14 @@ function setText(element, value) {
 
 function setStatus(panel, value) {
   setText(panel.statusEl, value);
+}
+
+function setNetworkStage(panel, value) {
+  setText(panel.networkStageEl, value);
+}
+
+function setTaskId(panel, value) {
+  setText(panel.taskIdEl, value);
 }
 
 function formatDuration(elapsedMs) {
@@ -187,6 +200,8 @@ function resetTaskView(panel) {
   }
 
   panel.taskId = null;
+  setTaskId(panel, "未创建");
+  setNetworkStage(panel, "未发起");
   panel.resultVideo.pause();
   panel.resultVideo.removeAttribute("src");
   panel.resultVideo.load();
@@ -425,6 +440,7 @@ async function uploadAudioAndStartTask(panel) {
 
   panel.isBusy = true;
   setStatus(panel, "上传中");
+  setNetworkStage(panel, "音频上传中");
   setText(panel.progressText, "声音已送出，正在等待回应。");
   setOutputMode(panel, { loading: true });
   syncButtons();
@@ -442,6 +458,8 @@ async function uploadAudioAndStartTask(panel) {
     throw new Error(uploadPayload.error || "上传失败。");
   }
 
+  setNetworkStage(panel, "音频已上传");
+
   const startResponse = await fetch("/api/start-task", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -454,6 +472,8 @@ async function uploadAudioAndStartTask(panel) {
   }
 
   panel.taskId = startPayload.taskId;
+  setTaskId(panel, panel.taskId || "未返回");
+  setNetworkStage(panel, "任务已创建");
   await queryTask(panel);
 
   panel.pollId = setInterval(() => {
@@ -463,6 +483,7 @@ async function uploadAudioAndStartTask(panel) {
       panel.isBusy = false;
       syncButtons();
       setStatus(panel, "已中断");
+      setNetworkStage(panel, "调用异常");
       setText(panel.progressText, error instanceof Error ? error.message : "查询失败。");
     });
   }, 4000);
@@ -490,6 +511,7 @@ async function queryTask(panel) {
     panel.isBusy = false;
     syncButtons();
     setStatus(panel, "生成失败");
+    setNetworkStage(panel, "任务失败");
     setText(panel.progressText, payload.errorMessage || "这次没有成功返回结果。");
     return;
   }
@@ -509,12 +531,14 @@ async function queryTask(panel) {
     }
 
     setStatus(panel, "已完成");
+    setNetworkStage(panel, "视频已返回");
     setText(panel.progressText, "视频已经回来。");
     setOutputMode(panel, { loading: false, videoUrl: result.url });
     return;
   }
 
   setStatus(panel, "生成中");
+  setNetworkStage(panel, "轮询中");
   setText(panel.progressText, "正在处理中，请稍等片刻。");
 }
 
@@ -538,6 +562,7 @@ async function beginPress(panel, event) {
     await cleanupStream(panel);
     stopRecognition(panel);
     setStatus(panel, "不可用");
+    setNetworkStage(panel, "录音失败");
     setText(panel.progressText, error instanceof Error ? error.message : "无法开始录音。");
     syncButtons();
   }
@@ -563,6 +588,7 @@ permissionButton.addEventListener("click", async () => {
   } catch (error) {
     panels.forEach((panel) => {
       setStatus(panel, "授权失败");
+      setNetworkStage(panel, "未发起");
       setText(panel.progressText, error instanceof Error ? error.message : "无法获取麦克风权限。");
     });
     permissionButton.textContent = "开启录音权限";
@@ -579,6 +605,7 @@ function ensureRuntime() {
   setText(runtimeNote, "当前是文件预览，真正可用版本请部署到 Netlify");
   panels.forEach((panel) => {
     setStatus(panel, "请先部署到 Netlify");
+    setNetworkStage(panel, "不可用");
     setText(panel.progressText, "部署后你会获得 HTTPS 和稳定的麦克风权限。");
   });
 }

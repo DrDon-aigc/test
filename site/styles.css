@@ -201,6 +201,26 @@ body {
   align-items: start;
 }
 
+.screen-title {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.panel-index {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(139, 74, 46, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 250, 245, 0.92);
+  color: var(--accent);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
 .screen-label {
   margin: 0 0 8px;
   font-size: 0.76rem;
@@ -227,6 +247,41 @@ body {
   background: rgba(255, 250, 245, 0.88);
   color: var(--accent);
   white-space: nowrap;
+}
+
+.call-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.call-card {
+  display: grid;
+  gap: 6px;
+  min-height: 78px;
+  padding: 14px 16px;
+  border: 1px solid rgba(23, 19, 16, 0.08);
+  border-radius: 22px;
+  background: rgba(255, 252, 248, 0.78);
+}
+
+.call-label {
+  color: var(--accent);
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.call-value {
+  color: var(--accent-strong);
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.call-value-mono {
+  font-family: "SFMono-Regular", "Menlo", monospace;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }
 
 .result-frame {

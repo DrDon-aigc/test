@@ -14,7 +14,7 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260423d" />
+    <link rel="stylesheet" href="./styles.css?v=20260423e" />
   </head>
   <body>
     <div class="backdrop"></div>
@@ -40,11 +40,25 @@
       <section class="stage-grid">
         <article class="panel-screen" data-panel-id="left">
           <div class="screen-head">
-            <div>
-              <p class="screen-label">LEFT SCREEN</p>
-              <h2>左侧工作区</h2>
+            <div class="screen-title">
+              <span class="panel-index">01</span>
+              <div>
+                <p class="screen-label">LEFT SCREEN</p>
+                <h2>左侧工作区</h2>
+              </div>
             </div>
             <div class="status-badge" data-role="status">等待授权</div>
+          </div>
+
+          <div class="call-strip">
+            <div class="call-card">
+              <span class="call-label">调用阶段</span>
+              <strong class="call-value" data-role="networkStage">未发起</strong>
+            </div>
+            <div class="call-card">
+              <span class="call-label">Task ID</span>
+              <strong class="call-value call-value-mono" data-role="taskId">未创建</strong>
+            </div>
           </div>
 
           <div class="result-frame" data-role="resultStage">
@@ -103,11 +117,25 @@
 
         <article class="panel-screen" data-panel-id="right">
           <div class="screen-head">
-            <div>
-              <p class="screen-label">RIGHT SCREEN</p>
-              <h2>右侧工作区</h2>
+            <div class="screen-title">
+              <span class="panel-index">02</span>
+              <div>
+                <p class="screen-label">RIGHT SCREEN</p>
+                <h2>右侧工作区</h2>
+              </div>
             </div>
             <div class="status-badge" data-role="status">等待授权</div>
+          </div>
+
+          <div class="call-strip">
+            <div class="call-card">
+              <span class="call-label">调用阶段</span>
+              <strong class="call-value" data-role="networkStage">未发起</strong>
+            </div>
+            <div class="call-card">
+              <span class="call-label">Task ID</span>
+              <strong class="call-value call-value-mono" data-role="taskId">未创建</strong>
+            </div>
           </div>
 
           <div class="result-frame" data-role="resultStage">
@@ -166,6 +194,6 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=20260423d"></script>
+    <script type="module" src="./app.js?v=20260423e"></script>
   </body>
 </html>
