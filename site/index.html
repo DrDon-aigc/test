@@ -6,7 +6,7 @@
     <title>以卿之声回复你</title>
     <meta
       name="description"
-      content="先授权麦克风，长按录音，检查文字和音频，再生成回应视频。"
+      content="双屏并发录音与结果展示，支持连续语音转文字与页内视频播放。"
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,70 +14,53 @@
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260423d" />
   </head>
   <body>
     <div class="backdrop"></div>
     <main class="app-shell">
       <header class="masthead">
-        <p class="runtime-note" id="runtimeNote">先授权，再长按录音，确认后回复</p>
+        <p class="runtime-note" id="runtimeNote">双屏并发录音，等待时另一侧可继续操作</p>
         <h1>以卿之声回复你</h1>
-        <p class="lede">把流程拆清楚，只留下你真正需要操作的那几步。</p>
+        <p class="lede">一次授权，两侧独立录音、转写、生成与播放，适合现场连续演示。</p>
       </header>
 
-      <section class="stage">
-        <div class="input-panel">
-          <div class="controls">
-            <button class="control-button permission-button" id="permissionButton" type="button">
-              开启录音权限
-            </button>
-            <button class="control-button reply-button" id="replyButton" type="button" disabled>
-              回复
-            </button>
-          </div>
-
-          <div class="recorder">
-            <div class="recorder-halo recorder-halo-a"></div>
-            <div class="recorder-halo recorder-halo-b"></div>
-            <div class="recorder-core">
-              <span class="timer" id="timer">00:00</span>
-              <button class="record-button" id="recordButton" type="button" disabled>
-                <span class="record-button-text">长按录音</span>
-              </button>
-            </div>
-            <div class="meter" id="meter"></div>
-          </div>
-
-          <p class="status-line" id="statusLine">先开启录音权限</p>
-
-          <div class="transcript-card">
-            <textarea
-              class="transcript-input"
-              id="transcriptInput"
-              placeholder="松手后，这里会出现转写文字，你可以再检查一遍。"
-            ></textarea>
-          </div>
-
-          <div class="audio-card hidden" id="audioCard">
-            <audio id="audioPlayer" controls></audio>
+      <section class="prompt-box">
+        <div class="prompt-copy">
+          <p class="prompt-label">可以这样问</p>
+          <div class="prompt-list">
+            <span class="prompt-chip">澳門有什麼美食推薦？</span>
+            <span class="prompt-chip">澳門蹦極值得去嗎？</span>
+            <span class="prompt-chip">為什麼葡撻的風味這麼特別？</span>
           </div>
         </div>
+        <button class="permission-button" id="permissionButton" type="button">开启录音权限</button>
+      </section>
 
-        <div class="result-panel">
-          <div class="result-frame" id="resultStage">
-            <div class="loading-view" id="loadingView">
+      <section class="stage-grid">
+        <article class="panel-screen" data-panel-id="left">
+          <div class="screen-head">
+            <div>
+              <p class="screen-label">LEFT SCREEN</p>
+              <h2>左侧工作区</h2>
+            </div>
+            <div class="status-badge" data-role="status">等待授权</div>
+          </div>
+
+          <div class="result-frame" data-role="resultStage">
+            <div class="loading-view" data-role="loadingView">
               <div class="loading-orbit loading-orbit-a"></div>
               <div class="loading-orbit loading-orbit-b"></div>
               <div class="loading-core"></div>
               <div class="loading-copy">
-                <h2>静候回音</h2>
-                <p id="progressText">先长按录音，松手后检查，再点击回复。</p>
+                <h3>静候回音</h3>
+                <p data-role="progressText">先按住录音，松手检查后再点击回复。</p>
               </div>
             </div>
 
-            <div class="video-shell hidden" id="videoShell">
+            <div class="video-shell hidden" data-role="videoShell">
               <video
-                id="resultVideo"
+                data-role="resultVideo"
                 controls
                 playsinline
                 webkit-playsinline="true"
@@ -85,10 +68,104 @@
               ></video>
             </div>
           </div>
-        </div>
+
+          <div class="action-row">
+            <button class="reply-button" data-role="replyButton" type="button" disabled>回复</button>
+            <span class="action-hint">左侧生成中时，右侧仍可继续录音</span>
+          </div>
+
+          <div class="recorder-shell">
+            <div class="recorder" data-role="recorder">
+              <div class="recorder-halo recorder-halo-a"></div>
+              <div class="recorder-halo recorder-halo-b"></div>
+              <div class="recorder-core">
+                <span class="timer" data-role="timer">00:00</span>
+                <button class="record-button" data-role="recordButton" type="button" disabled>
+                  <span class="record-button-text">长按录音</span>
+                </button>
+              </div>
+              <div class="meter" data-role="meter"></div>
+            </div>
+          </div>
+
+          <div class="transcript-card">
+            <textarea
+              class="transcript-input"
+              data-role="transcriptInput"
+              placeholder="松手后，这里会显示实时转写，你也可以手动修改。"
+            ></textarea>
+          </div>
+
+          <div class="audio-card hidden" data-role="audioCard">
+            <audio data-role="audioPlayer" controls></audio>
+          </div>
+        </article>
+
+        <article class="panel-screen" data-panel-id="right">
+          <div class="screen-head">
+            <div>
+              <p class="screen-label">RIGHT SCREEN</p>
+              <h2>右侧工作区</h2>
+            </div>
+            <div class="status-badge" data-role="status">等待授权</div>
+          </div>
+
+          <div class="result-frame" data-role="resultStage">
+            <div class="loading-view" data-role="loadingView">
+              <div class="loading-orbit loading-orbit-a"></div>
+              <div class="loading-orbit loading-orbit-b"></div>
+              <div class="loading-core"></div>
+              <div class="loading-copy">
+                <h3>静候回音</h3>
+                <p data-role="progressText">先按住录音，松手检查后再点击回复。</p>
+              </div>
+            </div>
+
+            <div class="video-shell hidden" data-role="videoShell">
+              <video
+                data-role="resultVideo"
+                controls
+                playsinline
+                webkit-playsinline="true"
+                preload="metadata"
+              ></video>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button class="reply-button" data-role="replyButton" type="button" disabled>回复</button>
+            <span class="action-hint">两侧任务轮询互不影响，可并发等待结果</span>
+          </div>
+
+          <div class="recorder-shell">
+            <div class="recorder" data-role="recorder">
+              <div class="recorder-halo recorder-halo-a"></div>
+              <div class="recorder-halo recorder-halo-b"></div>
+              <div class="recorder-core">
+                <span class="timer" data-role="timer">00:00</span>
+                <button class="record-button" data-role="recordButton" type="button" disabled>
+                  <span class="record-button-text">长按录音</span>
+                </button>
+              </div>
+              <div class="meter" data-role="meter"></div>
+            </div>
+          </div>
+
+          <div class="transcript-card">
+            <textarea
+              class="transcript-input"
+              data-role="transcriptInput"
+              placeholder="松手后，这里会显示实时转写，你也可以手动修改。"
+            ></textarea>
+          </div>
+
+          <div class="audio-card hidden" data-role="audioCard">
+            <audio data-role="audioPlayer" controls></audio>
+          </div>
+        </article>
       </section>
     </main>
 
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="./app.js?v=20260423d"></script>
   </body>
 </html>

@@ -1,191 +1,225 @@
-const state = {
+const globalState = {
   hasPermission: false,
-  isRecording: false,
-  isBusy: false,
-  stream: null,
-  mediaRecorder: null,
-  analyser: null,
-  audioContext: null,
-  audioBlob: null,
-  audioUrl: "",
-  recognition: null,
-  recognitionSupported: false,
-  transcript: "",
-  chunks: [],
-  meterBars: [],
-  meterId: null,
-  timerId: null,
-  startedAt: null,
-  pollId: null,
-  taskId: null,
-  pollIntervalMs: 4000,
+  recognitionSupported: Boolean(window.SpeechRecognition || window.webkitSpeechRecognition),
   isFileMode: window.location.protocol === "file:",
-  activePointerId: null,
+  activeRecordingPanelId: null,
 };
 
-const permissionButton = document.querySelector("#permissionButton");
-const replyButton = document.querySelector("#replyButton");
-const recordButton = document.querySelector("#recordButton");
-const timer = document.querySelector("#timer");
 const runtimeNote = document.querySelector("#runtimeNote");
-const statusLine = document.querySelector("#statusLine");
-const transcriptInput = document.querySelector("#transcriptInput");
-const audioCard = document.querySelector("#audioCard");
-const audioPlayer = document.querySelector("#audioPlayer");
-const progressText = document.querySelector("#progressText");
-const loadingView = document.querySelector("#loadingView");
-const videoShell = document.querySelector("#videoShell");
-const resultVideo = document.querySelector("#resultVideo");
-const meter = document.querySelector("#meter");
+const permissionButton = document.querySelector("#permissionButton");
+const panelElements = [...document.querySelectorAll("[data-panel-id]")];
 
-for (let index = 0; index < 24; index += 1) {
-  const bar = document.createElement("span");
-  bar.style.height = "10px";
-  meter.appendChild(bar);
-  state.meterBars.push(bar);
+const panels = panelElements.map((root) => createPanelController(root));
+
+function createPanelController(root) {
+  const state = {
+    id: root.dataset.panelId,
+    root,
+    statusEl: root.querySelector('[data-role="status"]'),
+    replyButton: root.querySelector('[data-role="replyButton"]'),
+    recordButton: root.querySelector('[data-role="recordButton"]'),
+    timerEl: root.querySelector('[data-role="timer"]'),
+    transcriptInput: root.querySelector('[data-role="transcriptInput"]'),
+    audioCard: root.querySelector('[data-role="audioCard"]'),
+    audioPlayer: root.querySelector('[data-role="audioPlayer"]'),
+    progressText: root.querySelector('[data-role="progressText"]'),
+    loadingView: root.querySelector('[data-role="loadingView"]'),
+    videoShell: root.querySelector('[data-role="videoShell"]'),
+    resultVideo: root.querySelector('[data-role="resultVideo"]'),
+    meterEl: root.querySelector('[data-role="meter"]'),
+    meterBars: [],
+    isRecording: false,
+    isBusy: false,
+    activePointerId: null,
+    stream: null,
+    mediaRecorder: null,
+    audioContext: null,
+    analyser: null,
+    meterId: null,
+    timerId: null,
+    startedAt: null,
+    audioBlob: null,
+    audioUrl: "",
+    transcript: "",
+    chunks: [],
+    pollId: null,
+    taskId: null,
+    recognition: null,
+  };
+
+  for (let index = 0; index < 24; index += 1) {
+    const bar = document.createElement("span");
+    bar.style.height = "10px";
+    state.meterEl.appendChild(bar);
+    state.meterBars.push(bar);
+  }
+
+  state.recordButton.addEventListener("pointerdown", (event) => beginPress(state, event));
+  state.recordButton.addEventListener("pointerup", (event) => endPress(state, event));
+  state.recordButton.addEventListener("pointercancel", (event) => endPress(state, event));
+  state.recordButton.addEventListener("lostpointercapture", async () => {
+    state.activePointerId = null;
+    await stopRecording(state);
+  });
+  state.recordButton.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+  });
+
+  state.replyButton.addEventListener("click", async () => {
+    try {
+      state.transcript = state.transcriptInput.value.trim();
+      await uploadAudioAndStartTask(state);
+    } catch (error) {
+      state.isBusy = false;
+      syncButtons();
+      setStatus(state, "未连接");
+      setText(state.progressText, error instanceof Error ? error.message : "发生了未知错误。");
+    }
+  });
+
+  setStatus(state, "等待授权");
+  setText(state.progressText, "先按住录音，松手检查后再点击回复。");
+  setOutputMode(state, { loading: true });
+  stopMeters(state);
+  return state;
 }
 
-const setText = (element, value) => {
+function setText(element, value) {
   element.textContent = value;
-};
+}
 
-const formatDuration = (elapsedMs) => {
+function setStatus(panel, value) {
+  setText(panel.statusEl, value);
+}
+
+function formatDuration(elapsedMs) {
   const totalSeconds = Math.floor(elapsedMs / 1000);
   const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
   const seconds = String(totalSeconds % 60).padStart(2, "0");
   return `${minutes}:${seconds}`;
-};
+}
 
-const setStatus = (value) => {
-  setText(statusLine, value);
-};
+function anyPanelRecording() {
+  return panels.some((panel) => panel.isRecording);
+}
 
-const releaseAudioUrl = () => {
-  if (state.audioUrl) {
-    URL.revokeObjectURL(state.audioUrl);
-    state.audioUrl = "";
+function releaseAudioUrl(panel) {
+  if (panel.audioUrl) {
+    URL.revokeObjectURL(panel.audioUrl);
+    panel.audioUrl = "";
   }
-};
+}
 
-const syncButtons = () => {
-  permissionButton.disabled = state.isBusy || state.isRecording;
-  recordButton.disabled = !state.hasPermission || state.isBusy;
-  replyButton.disabled = state.isBusy || !state.audioBlob;
-  recordButton.querySelector(".record-button-text").textContent = state.isRecording
-    ? "松手停止"
-    : "长按录音";
-};
+function syncButtons() {
+  const recordingPanel = panels.find((panel) => panel.isRecording);
 
-const setOutputMode = ({ loading = true, videoUrl = "" } = {}) => {
-  loadingView.classList.toggle("hidden", !loading);
-  videoShell.classList.toggle("hidden", loading);
+  permissionButton.disabled = panels.some((panel) => panel.isBusy || panel.isRecording);
+  permissionButton.textContent = globalState.hasPermission ? "录音权限已开启" : "开启录音权限";
+
+  panels.forEach((panel) => {
+    const blockedByOtherRecording =
+      Boolean(recordingPanel) && recordingPanel.id !== panel.id && !panel.isRecording;
+
+    panel.recordButton.disabled =
+      !globalState.hasPermission || panel.isBusy || blockedByOtherRecording;
+    panel.replyButton.disabled = panel.isBusy || !panel.audioBlob;
+    panel.recordButton.querySelector(".record-button-text").textContent = panel.isRecording
+      ? "松手停止"
+      : "长按录音";
+  });
+}
+
+function setOutputMode(panel, { loading = true, videoUrl = "" } = {}) {
+  panel.loadingView.classList.toggle("hidden", !loading);
+  panel.videoShell.classList.toggle("hidden", loading);
 
   if (videoUrl) {
-    resultVideo.src = videoUrl;
-    resultVideo.load();
-    const tryPlay = () => {
-      resultVideo.play().catch(() => {
+    panel.resultVideo.onloadeddata = null;
+    panel.resultVideo.src = videoUrl;
+    panel.resultVideo.load();
+    panel.resultVideo.onloadeddata = () => {
+      panel.resultVideo.play().catch(() => {
         // Autoplay can be blocked by the browser; controls remain available.
       });
     };
-    resultVideo.onloadeddata = tryPlay;
   }
-};
+}
 
-const stopMeters = () => {
-  if (state.meterId) {
-    cancelAnimationFrame(state.meterId);
-    state.meterId = null;
+function stopMeters(panel) {
+  if (panel.meterId) {
+    cancelAnimationFrame(panel.meterId);
+    panel.meterId = null;
   }
 
-  state.meterBars.forEach((bar, index) => {
+  panel.meterBars.forEach((bar, index) => {
     bar.style.height = `${10 + (index % 3) * 2}px`;
     bar.style.opacity = "0.18";
   });
-};
+}
 
-const startMeters = () => {
-  if (!state.analyser) {
+function startMeters(panel) {
+  if (!panel.analyser) {
     return;
   }
 
-  const buffer = new Uint8Array(state.analyser.frequencyBinCount);
+  const buffer = new Uint8Array(panel.analyser.frequencyBinCount);
 
   const draw = () => {
-    state.analyser.getByteFrequencyData(buffer);
+    panel.analyser.getByteFrequencyData(buffer);
 
-    state.meterBars.forEach((bar, index) => {
+    panel.meterBars.forEach((bar, index) => {
       const bucket = buffer[index * 2] || 0;
       const height = Math.max(10, (bucket / 255) * 48 + 8);
       bar.style.height = `${height}px`;
       bar.style.opacity = String(0.18 + (bucket / 255) * 0.72);
     });
 
-    state.meterId = requestAnimationFrame(draw);
+    panel.meterId = requestAnimationFrame(draw);
   };
 
   draw();
-};
+}
 
-const resetTaskView = () => {
-  if (state.pollId) {
-    clearInterval(state.pollId);
-    state.pollId = null;
+function resetTaskView(panel) {
+  if (panel.pollId) {
+    clearInterval(panel.pollId);
+    panel.pollId = null;
   }
 
-  state.taskId = null;
-  resultVideo.pause();
-  resultVideo.removeAttribute("src");
-  resultVideo.load();
-  setOutputMode({ loading: true });
-  setText(progressText, "先长按录音，松手后检查，再点击回复。");
-};
+  panel.taskId = null;
+  panel.resultVideo.pause();
+  panel.resultVideo.removeAttribute("src");
+  panel.resultVideo.load();
+  setOutputMode(panel, { loading: true });
+  setText(panel.progressText, "先按住录音，松手检查后再点击回复。");
+}
 
-const clearCurrentTake = () => {
-  state.audioBlob = null;
-  state.transcript = "";
-  releaseAudioUrl();
-  audioPlayer.removeAttribute("src");
-  audioPlayer.load();
-  audioCard.classList.add("hidden");
-  transcriptInput.value = "";
-  timer.textContent = "00:00";
-  resetTaskView();
+function clearCurrentTake(panel) {
+  panel.audioBlob = null;
+  panel.transcript = "";
+  releaseAudioUrl(panel);
+  panel.audioPlayer.removeAttribute("src");
+  panel.audioPlayer.load();
+  panel.audioCard.classList.add("hidden");
+  panel.transcriptInput.value = "";
+  panel.timerEl.textContent = "00:00";
+  resetTaskView(panel);
   syncButtons();
-};
+}
 
-const stopRecognition = () => {
-  if (!state.recognition) {
-    return;
-  }
-
-  state.recognition.onresult = null;
-  state.recognition.onend = null;
-  state.recognition.onerror = null;
-
-  try {
-    state.recognition.stop();
-  } catch {
-    // Ignore browser-specific stop errors.
-  }
-};
-
-const setupRecognition = () => {
+function createRecognition(panel) {
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   if (!Recognition) {
-    state.recognitionSupported = false;
-    transcriptInput.placeholder = "当前浏览器不支持实时转写，你仍然可以录音和回放。";
-    return;
+    return null;
   }
 
-  state.recognitionSupported = true;
-  state.recognition = new Recognition();
-  state.recognition.lang = "zh-CN";
-  state.recognition.interimResults = true;
-  state.recognition.continuous = true;
+  const recognition = new Recognition();
+  recognition.lang = "zh-CN";
+  recognition.interimResults = true;
+  recognition.continuous = true;
 
-  state.recognition.onresult = (event) => {
+  recognition.onresult = (event) => {
     let finalText = "";
     let interimText = "";
 
@@ -200,140 +234,161 @@ const setupRecognition = () => {
       }
     }
 
-    state.transcript = `${finalText}${interimText}`.trim();
-    transcriptInput.value = state.transcript;
+    panel.transcript = `${finalText}${interimText}`.trim();
+    panel.transcriptInput.value = panel.transcript;
   };
 
-  state.recognition.onerror = () => {
-    if (!transcriptInput.value) {
-      transcriptInput.placeholder = "实时转写中断了，但录音仍可正常使用。";
+  recognition.onerror = () => {
+    if (!panel.transcriptInput.value) {
+      panel.transcriptInput.placeholder = "实时转写暂时中断了，你也可以手动补充文字。";
     }
   };
 
-  state.recognition.onend = () => {
-    if (state.isRecording) {
+  recognition.onend = () => {
+    if (panel.isRecording && panel.recognition === recognition) {
       try {
-        state.recognition.start();
+        recognition.start();
       } catch {
         // Ignore restart timing issues.
       }
     }
   };
-};
 
-const ensureRuntime = () => {
-  if (!state.isFileMode) {
+  return recognition;
+}
+
+function stopRecognition(panel) {
+  if (!panel.recognition) {
     return;
   }
 
-  runtimeNote.classList.add("is-warning");
-  setText(runtimeNote, "当前是文件预览，真正可用版本请部署到 Netlify");
-  setStatus("请先部署到 Netlify");
-  setText(progressText, "部署后你会获得 HTTPS 和稳定的麦克风权限。");
-};
+  const recognition = panel.recognition;
+  panel.recognition = null;
+  recognition.onresult = null;
+  recognition.onend = null;
+  recognition.onerror = null;
 
-const updateTimer = () => {
-  timer.textContent = formatDuration(Date.now() - state.startedAt);
-};
+  try {
+    recognition.stop();
+  } catch {
+    // Ignore browser-specific stop errors.
+  }
+}
 
-const cleanupStream = async () => {
-  state.stream?.getTracks().forEach((track) => track.stop());
-  state.stream = null;
+function updateTimer(panel) {
+  panel.timerEl.textContent = formatDuration(Date.now() - panel.startedAt);
+}
 
-  if (state.audioContext && state.audioContext.state !== "closed") {
-    await state.audioContext.close();
+async function cleanupStream(panel) {
+  panel.stream?.getTracks().forEach((track) => track.stop());
+  panel.stream = null;
+
+  if (panel.audioContext && panel.audioContext.state !== "closed") {
+    await panel.audioContext.close();
   }
 
-  state.audioContext = null;
-  state.analyser = null;
-};
+  panel.audioContext = null;
+  panel.analyser = null;
+}
 
-const startRecording = async () => {
-  if (!state.hasPermission || state.isBusy || state.isRecording) {
+async function startRecording(panel) {
+  if (
+    !globalState.hasPermission ||
+    panel.isBusy ||
+    panel.isRecording ||
+    (globalState.activeRecordingPanelId && globalState.activeRecordingPanelId !== panel.id)
+  ) {
     return;
   }
 
-  clearCurrentTake();
-  setStatus("按住录音中");
-  transcriptInput.placeholder = "松手后，你可以在这里检查转写。";
-  state.chunks = [];
-  state.transcript = "";
+  clearCurrentTake(panel);
+  panel.chunks = [];
+  panel.transcript = "";
+  panel.transcriptInput.placeholder = "松手后，这里会显示实时转写，你也可以手动修改。";
+  setStatus(panel, "录音中");
 
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  state.stream = stream;
+  panel.stream = stream;
 
   const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
     ? "audio/webm;codecs=opus"
     : "audio/webm";
 
-  state.mediaRecorder = new MediaRecorder(stream, { mimeType });
-  state.mediaRecorder.ondataavailable = (event) => {
+  panel.mediaRecorder = new MediaRecorder(stream, { mimeType });
+  panel.mediaRecorder.ondataavailable = (event) => {
     if (event.data.size > 0) {
-      state.chunks.push(event.data);
+      panel.chunks.push(event.data);
     }
   };
 
-  state.mediaRecorder.onstop = async () => {
-    const blob = new Blob(state.chunks, { type: state.mediaRecorder.mimeType });
-    state.audioBlob = blob;
-    releaseAudioUrl();
-    state.audioUrl = URL.createObjectURL(blob);
-    audioPlayer.src = state.audioUrl;
-    audioCard.classList.remove("hidden");
+  panel.mediaRecorder.onstop = async () => {
+    const blob = new Blob(panel.chunks, { type: panel.mediaRecorder.mimeType });
+    panel.audioBlob = blob;
+    releaseAudioUrl(panel);
+    panel.audioUrl = URL.createObjectURL(blob);
+    panel.audioPlayer.src = panel.audioUrl;
+    panel.audioCard.classList.remove("hidden");
 
-    await cleanupStream();
-    stopMeters();
-    stopRecognition();
+    await cleanupStream(panel);
+    stopMeters(panel);
+    stopRecognition(panel);
 
-    state.isRecording = false;
-    setStatus("检查文字和音频，再点回复");
-    setText(progressText, "确认无误后，点击回复开始任务。");
+    panel.isRecording = false;
+    globalState.activeRecordingPanelId = null;
+    setStatus(panel, "检查文字和音频");
+    setText(panel.progressText, "确认无误后，点击回复开始任务。");
     syncButtons();
   };
 
-  state.audioContext = new AudioContext();
-  const source = state.audioContext.createMediaStreamSource(stream);
-  state.analyser = state.audioContext.createAnalyser();
-  state.analyser.fftSize = 64;
-  source.connect(state.analyser);
-  startMeters();
+  panel.audioContext = new AudioContext();
+  const source = panel.audioContext.createMediaStreamSource(stream);
+  panel.analyser = panel.audioContext.createAnalyser();
+  panel.analyser.fftSize = 64;
+  source.connect(panel.analyser);
+  startMeters(panel);
 
-  state.startedAt = Date.now();
-  updateTimer();
-  state.timerId = setInterval(updateTimer, 250);
-  state.isRecording = true;
-  recordButton.classList.add("is-recording");
+  panel.startedAt = Date.now();
+  updateTimer(panel);
+  panel.timerId = setInterval(() => updateTimer(panel), 250);
+  panel.isRecording = true;
+  globalState.activeRecordingPanelId = panel.id;
+  panel.recordButton.classList.add("is-recording");
   syncButtons();
 
-  state.mediaRecorder.start();
+  panel.mediaRecorder.start();
 
-  if (state.recognitionSupported) {
-    try {
-      state.recognition.start();
-    } catch {
-      transcriptInput.placeholder = "实时转写暂时没有启动。";
+  if (globalState.recognitionSupported) {
+    panel.recognition = createRecognition(panel);
+    if (panel.recognition) {
+      try {
+        panel.recognition.start();
+      } catch {
+        panel.transcriptInput.placeholder = "实时转写暂时没有启动，你也可以手动补充文字。";
+      }
     }
+  } else {
+    panel.transcriptInput.placeholder = "当前浏览器不支持实时转写，你也可以手动补充文字。";
   }
-};
+}
 
-const stopRecording = async () => {
-  if (!state.isRecording || !state.mediaRecorder) {
+async function stopRecording(panel) {
+  if (!panel.isRecording || !panel.mediaRecorder) {
     return;
   }
 
-  if (state.timerId) {
-    clearInterval(state.timerId);
-    state.timerId = null;
+  if (panel.timerId) {
+    clearInterval(panel.timerId);
+    panel.timerId = null;
   }
 
-  recordButton.classList.remove("is-recording");
+  panel.recordButton.classList.remove("is-recording");
 
-  if (state.mediaRecorder.state !== "inactive") {
-    state.mediaRecorder.stop();
+  if (panel.mediaRecorder.state !== "inactive") {
+    panel.mediaRecorder.stop();
   }
-};
+}
 
-const requestPermission = async () => {
+async function requestPermission() {
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error("当前浏览器不支持麦克风访问。");
   }
@@ -343,43 +398,43 @@ const requestPermission = async () => {
   }
 
   permissionButton.disabled = true;
-  setStatus("请求权限中");
-  setText(progressText, "浏览器可能会弹出麦克风授权，请点击允许。");
-  setText(permissionButton, "请求权限中...");
+  permissionButton.textContent = "请求权限中...";
+  panels.forEach((panel) => {
+    setStatus(panel, "请求权限中");
+    setText(panel.progressText, "浏览器可能会弹出麦克风授权，请点击允许。");
+  });
 
   try {
     const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     tempStream.getTracks().forEach((track) => track.stop());
-    state.hasPermission = true;
-    setStatus("已授权，可以长按录音");
-    setText(progressText, "按住左侧录音键，松手后检查，再点击回复。");
-    setText(permissionButton, "已开启录音权限");
-  } catch (error) {
-    state.hasPermission = false;
-    setText(permissionButton, "开启录音权限");
-    throw error;
+    globalState.hasPermission = true;
+    panels.forEach((panel) => {
+      setStatus(panel, "已授权，可以录音");
+      setText(panel.progressText, "按住录音键，松手检查，再点击回复。");
+    });
   } finally {
+    permissionButton.textContent = globalState.hasPermission ? "录音权限已开启" : "开启录音权限";
     syncButtons();
   }
-};
+}
 
-const uploadAudioAndStartTask = async () => {
-  if (!state.audioBlob) {
+async function uploadAudioAndStartTask(panel) {
+  if (!panel.audioBlob) {
     return;
   }
 
-  state.isBusy = true;
-  setStatus("上传中");
-  setText(progressText, "声音已送出，正在等待回应。");
-  setOutputMode({ loading: true });
+  panel.isBusy = true;
+  setStatus(panel, "上传中");
+  setText(panel.progressText, "声音已送出，正在等待回应。");
+  setOutputMode(panel, { loading: true });
   syncButtons();
 
   const uploadResponse = await fetch("/api/upload-audio", {
     method: "POST",
     headers: {
-      "Content-Type": state.audioBlob.type || "audio/webm",
+      "Content-Type": panel.audioBlob.type || "audio/webm",
     },
-    body: state.audioBlob,
+    body: panel.audioBlob,
   });
   const uploadPayload = await uploadResponse.json();
 
@@ -398,30 +453,30 @@ const uploadAudioAndStartTask = async () => {
     throw new Error(startPayload.error || startPayload.errorMessage || "创建任务失败。");
   }
 
-  state.taskId = startPayload.taskId;
-  await queryTask();
+  panel.taskId = startPayload.taskId;
+  await queryTask(panel);
 
-  state.pollId = setInterval(() => {
-    queryTask().catch((error) => {
-      clearInterval(state.pollId);
-      state.pollId = null;
-      state.isBusy = false;
+  panel.pollId = setInterval(() => {
+    queryTask(panel).catch((error) => {
+      clearInterval(panel.pollId);
+      panel.pollId = null;
+      panel.isBusy = false;
       syncButtons();
-      setStatus("已中断");
-      setText(progressText, error instanceof Error ? error.message : "查询失败。");
+      setStatus(panel, "已中断");
+      setText(panel.progressText, error instanceof Error ? error.message : "查询失败。");
     });
-  }, state.pollIntervalMs);
-};
+  }, 4000);
+}
 
-const queryTask = async () => {
-  if (!state.taskId) {
+async function queryTask(panel) {
+  if (!panel.taskId) {
     return;
   }
 
   const response = await fetch("/api/query-task", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ taskId: state.taskId }),
+    body: JSON.stringify({ taskId: panel.taskId }),
   });
   const payload = await response.json();
 
@@ -430,19 +485,19 @@ const queryTask = async () => {
   }
 
   if (payload.status === "FAILED") {
-    clearInterval(state.pollId);
-    state.pollId = null;
-    state.isBusy = false;
+    clearInterval(panel.pollId);
+    panel.pollId = null;
+    panel.isBusy = false;
     syncButtons();
-    setStatus("生成失败");
-    setText(progressText, payload.errorMessage || "这次没有成功返回结果。");
+    setStatus(panel, "生成失败");
+    setText(panel.progressText, payload.errorMessage || "这次没有成功返回结果。");
     return;
   }
 
   if (payload.status === "SUCCESS") {
-    clearInterval(state.pollId);
-    state.pollId = null;
-    state.isBusy = false;
+    clearInterval(panel.pollId);
+    panel.pollId = null;
+    panel.isBusy = false;
     syncButtons();
 
     const result =
@@ -453,88 +508,80 @@ const queryTask = async () => {
       throw new Error("任务完成了，但没有拿到视频地址。");
     }
 
-    setStatus("已完成");
-    setText(progressText, "视频已经回来。");
-    setOutputMode({ loading: false, videoUrl: result.url });
+    setStatus(panel, "已完成");
+    setText(panel.progressText, "视频已经回来。");
+    setOutputMode(panel, { loading: false, videoUrl: result.url });
     return;
   }
 
-  setStatus("生成中");
-  setText(progressText, "正在处理中，请稍等片刻。");
-};
+  setStatus(panel, "生成中");
+  setText(panel.progressText, "正在处理中，请稍等片刻。");
+}
+
+async function beginPress(panel, event) {
+  event.preventDefault();
+  if (panel.recordButton.disabled || panel.activePointerId !== null) {
+    return;
+  }
+
+  panel.activePointerId = event.pointerId;
+  panel.recordButton.setPointerCapture(event.pointerId);
+
+  try {
+    await startRecording(panel);
+  } catch (error) {
+    panel.activePointerId = null;
+    panel.isRecording = false;
+    globalState.activeRecordingPanelId = null;
+    panel.recordButton.classList.remove("is-recording");
+    stopMeters(panel);
+    await cleanupStream(panel);
+    stopRecognition(panel);
+    setStatus(panel, "不可用");
+    setText(panel.progressText, error instanceof Error ? error.message : "无法开始录音。");
+    syncButtons();
+  }
+}
+
+async function endPress(panel, event) {
+  event.preventDefault();
+  if (panel.activePointerId !== event.pointerId) {
+    return;
+  }
+
+  if (panel.recordButton.hasPointerCapture(event.pointerId)) {
+    panel.recordButton.releasePointerCapture(event.pointerId);
+  }
+
+  panel.activePointerId = null;
+  await stopRecording(panel);
+}
 
 permissionButton.addEventListener("click", async () => {
   try {
     await requestPermission();
   } catch (error) {
-    setStatus("授权失败");
-    setText(progressText, error instanceof Error ? error.message : "无法获取麦克风权限。");
+    panels.forEach((panel) => {
+      setStatus(panel, "授权失败");
+      setText(panel.progressText, error instanceof Error ? error.message : "无法获取麦克风权限。");
+    });
+    permissionButton.textContent = "开启录音权限";
     syncButtons();
   }
 });
 
-const beginPress = async (event) => {
-  event.preventDefault();
-  if (recordButton.disabled || state.activePointerId !== null) {
+function ensureRuntime() {
+  if (!globalState.isFileMode) {
     return;
   }
 
-  state.activePointerId = event.pointerId;
-  recordButton.setPointerCapture(event.pointerId);
-
-  try {
-    await startRecording();
-  } catch (error) {
-    state.activePointerId = null;
-    state.isRecording = false;
-    recordButton.classList.remove("is-recording");
-    stopMeters();
-    await cleanupStream();
-    setStatus("不可用");
-    setText(progressText, error instanceof Error ? error.message : "无法开始录音。");
-    syncButtons();
-  }
-};
-
-const endPress = async (event) => {
-  event.preventDefault();
-  if (state.activePointerId !== event.pointerId) {
-    return;
-  }
-
-  if (recordButton.hasPointerCapture(event.pointerId)) {
-    recordButton.releasePointerCapture(event.pointerId);
-  }
-
-  state.activePointerId = null;
-  await stopRecording();
-};
-
-recordButton.addEventListener("pointerdown", beginPress);
-recordButton.addEventListener("pointerup", endPress);
-recordButton.addEventListener("pointercancel", endPress);
-recordButton.addEventListener("lostpointercapture", async () => {
-  state.activePointerId = null;
-  await stopRecording();
-});
-recordButton.addEventListener("contextmenu", (event) => {
-  event.preventDefault();
-});
-
-replyButton.addEventListener("click", async () => {
-  try {
-    state.transcript = transcriptInput.value.trim();
-    await uploadAudioAndStartTask();
-  } catch (error) {
-    state.isBusy = false;
-    syncButtons();
-    setStatus("未连接");
-    setText(progressText, error instanceof Error ? error.message : "发生了未知错误。");
-  }
-});
+  runtimeNote.classList.add("is-warning");
+  setText(runtimeNote, "当前是文件预览，真正可用版本请部署到 Netlify");
+  panels.forEach((panel) => {
+    setStatus(panel, "请先部署到 Netlify");
+    setText(panel.progressText, "部署后你会获得 HTTPS 和稳定的麦克风权限。");
+  });
+}
 
 ensureRuntime();
-setupRecognition();
-setOutputMode({ loading: true });
 syncButtons();
-stopMeters();
